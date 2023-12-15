@@ -1,3 +1,4 @@
+from IPython.display import clear_output
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.datasets import make_circles 
@@ -34,7 +35,7 @@ def create_network_neural(cant):
 
     return neural_struc
 
-def train(neural_net, x, y, loss_f, lr = 0.1):
+def train(neural_net, x, y, loss_f, lr = 0.05, train=True):
     # Forward pass
     output = [(None, x)]
 
@@ -43,22 +44,26 @@ def train(neural_net, x, y, loss_f, lr = 0.1):
         a = neural_net[i].act_fun[0](z)
         output.append((z, a))
 
-    # Backward
-    deltas = []
+    if train == True:
 
-    for i in reversed(range(0, len(neural_net))):
-        z = output[i+1][0]
-        a = output[i+1][1]
+        # Backward
+        deltas = []
 
-        if i == len(neural_net) - 1:
-            deltas.insert(0, loss_f[1](a, y) * neural_net[i].act_fun[1](a)) 
-        else:
-            deltas.insert(0, deltas[0] @ _w.T * neural_net[i].act_fun[1](a)) 
-        _w = neural_net[i].w
+        for i in reversed(range(0, len(neural_net))):
+            z = output[i+1][0]
+            a = output[i+1][1]
 
-    # Gradient descent
-    neural_net[i].b = neural_net[i].b - np.mean(deltas[0], axis=0, keepdims=True) * lr
-    neural_net[i].w = neural_net[i].w - output[i][1].T @ deltas[0] * lr
+            if i == len(neural_net) - 1:
+                deltas.insert(0, loss_f[1](a, y) * neural_net[i].act_fun[1](a)) 
+            else:
+                deltas.insert(0, deltas[0] @ _w.T * neural_net[i].act_fun[1](a)) 
+            _w = neural_net[i].w
+
+        # Gradient descent
+        neural_net[i].b = neural_net[i].b - np.mean(deltas[0], axis=0, keepdims=True) * lr
+        neural_net[i].w = neural_net[i].w - output[i][1].T @ deltas[0] * lr
+
+    return output[-1][1]
 
 #--------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -110,48 +115,53 @@ cuadra = (lambda yp, yr: np.mean((yp - yr)**2),
 # Training the neural network
 
 errors_train = []
+errors_test = []
 
 neural_struc = create_network_neural(4)
 
 for l in range(1000):
     train(neural_struc, x_train, y_train, cuadra)
-    if l % 100 == 0:
+    if l % 50 == 0:
         predictions_train = neural_struc[-1].act_fun[0](x_train @ neural_struc[0].w + neural_struc[0].b)
         error_train = cuadra[0](predictions_train, y_train)
         errors_train.append(error_train)
-#--------------------------------------------------------------------------------------------------------------------------------------------------------
 
-# Evaluation on the test set
+        # Evaluation on the test set
+        predictions_test = neural_struc[-1].act_fun[0](x_test @ neural_struc[0].w + neural_struc[0].b)
+        error_test = cuadra[0](predictions_test, y_test)
+        errors_test.append(error_test)
 
-predictions_test = neural_struc[-1].act_fun[0](x_test @ neural_struc[0].w + neural_struc[0].b)
-error_test = cuadra[0](predictions_test, y_test)
+        _x0 = np.linspace(-1.5,1.5,50)
+        _x1 = np.linspace(-1.5,1.5,50)
+        _y = np.zeros((50,50))
 
-# Create subplots
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+        for i0, x0 in enumerate(_x0):
+            for i1, x1 in enumerate(_x1):
+                _y[i0,i1] = train(neural_struc, np.array([[x0,x1]]), y, cuadra, train=False)[0][0]
 
-# First plot: Scatter plot of the data
-ax1.scatter(x[y[:, 0] == 0, 0], x[y[:, 0] == 0, 1], c="orange", label="Class 0")
-ax1.scatter(x[y[:, 0] == 1, 0], x[y[:, 0] == 1, 1], c="blue", label="Class 1")
-ax1.set_title('Scatter Plot of the Data')
-ax1.set_xlabel('Feature 1')
-ax1.set_ylabel('Feature 2')
-ax1.legend()
-ax1.axis("equal")
+        # Create subplots
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+        
+        # First plot: Scatter plot of the data
+        ax1.pcolormesh(_x0, _x1, _y, cmap="coolwarm")
+        ax1.scatter(x[y[:, 0] == 0, 0], x[y[:, 0] == 0, 1], c="orange", label="Class 0")
+        ax1.scatter(x[y[:, 0] == 1, 0], x[y[:, 0] == 1, 1], c="blue", label="Class 1")
+        ax1.set_title('Scatter Plot of the Data')
+        ax1.set_xlabel('Feature 1')
+        ax1.set_ylabel('Feature 2')
+        ax1.legend()
+        ax1.axis("equal") 
 
-# Second plot: Training error plot
-ax2.plot(errors_train, label='Training Error')
-ax2.axhline(y=error_test, color='r', linestyle='--', label='Test Error')
-ax2.set_xlabel('Iterations')
-ax2.set_ylabel('Error')
-ax2.legend()
-ax2.set_title('Training and Test Error Over Iterations')
+        # Second plot: Training error plot
+        ax2.plot(errors_train, label='Training Error')
+        ax2.plot(errors_test, label='Test Error')
+        ax2.set_xlabel('Iterations')
+        ax2.set_ylabel('Error')
+        ax2.legend()
+        ax2.set_title('Training and Test Error Over Iterations')
 
-# Show both plots
-plt.tight_layout()
-plt.show()
-
-
-
-
-
+        clear_output(wait=True)
+        plt.show(block=False)  # No bloquear la ejecución
+        plt.pause(0.5)
+        plt.close()
 
